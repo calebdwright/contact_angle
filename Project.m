@@ -46,10 +46,8 @@ most_indexed = zeros(numPoints, 1);
 for i = 1:numPoints
     for k = 1:horzSections
         if count_horz(k) >= most_indexed(i)
-            if i > 1
-                if most_indexed(i-1) ~= k
+            if i > 1 && most_indexed(i-1) ~= k
                     most_indexed(i) = k;
-                end;
             else
                 most_indexed(i) = k;
             end;
@@ -123,6 +121,15 @@ for i = 1:numPoints
             frameCount(k) = k;
             contact_angle_array_2(k) = contact_angle_array(j,i);
             k = k+1;
+        end;
+    end;
+    for j = 1:size(contact_angle_array_2, 1)
+        if j < 10
+            contact_angle_array_2(j) = mean(contact_angle_array_2(1:10));
+        elseif j >= 5 && j < (size(contact_angle_array_2,1)-5)
+            contact_angle_array_2(j) = mean(contact_angle_array_2((j-10):(j+10)));
+        else
+            contact_angle_array_2(j) = mean(contact_angle_array_2((size(contact_angle_array_2,1)-10):size(contact_angle_array_2)));
         end;
     end;
     plot(frameCount, contact_angle_array_2, strcat(colors(i)));
