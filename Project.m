@@ -47,8 +47,8 @@ for i = 1:numPoints
     for k = 1:horzSections
         if count_horz(k) >= most_indexed(i)
             if i > 1 && most_indexed(i-1) ~= k
-                    most_indexed(i) = k;
-            else
+                most_indexed(i) = k;
+            elseif i == 1
                 most_indexed(i) = k;
             end;
         end;
@@ -118,21 +118,13 @@ for i = 1:numPoints
     contact_angle_array_2 = [];
     for j = 1:size(contact_angle_array, 1)
         if contact_angle_array(j,i) > 0
-            frameCount(k) = k;
+            frameCount(k) = j;
             contact_angle_array_2(k) = contact_angle_array(j,i);
             k = k+1;
         end;
     end;
-    for j = 1:size(contact_angle_array_2, 1)
-        if j < 10
-            contact_angle_array_2(j) = mean(contact_angle_array_2(1:10));
-        elseif j >= 5 && j < (size(contact_angle_array_2,1)-5)
-            contact_angle_array_2(j) = mean(contact_angle_array_2((j-10):(j+10)));
-        else
-            contact_angle_array_2(j) = mean(contact_angle_array_2((size(contact_angle_array_2,1)-10):size(contact_angle_array_2)));
-        end;
-    end;
-    plot(frameCount, contact_angle_array_2, strcat(colors(i)));
+    contact_angle_array_3 = smooth(frameCount, contact_angle_array_2, 21, 'rloess');
+    plot(frameCount, contact_angle_array_3, colors(i));
 end;
 hold off;
 toc
