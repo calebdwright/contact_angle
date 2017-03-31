@@ -16,19 +16,15 @@ vidSections = 4;
 numPoints = 2;
 mask_size = 20;
 
-point_array_x = [numFrames,1]; %Find strongest point in every frame
-point_array_y = [numFrames,1];
+point_array_x = []; %Find strongest points in every frame
+point_array_y = [];
 for i = 1 : numFrames
     frame1 = imread(filename, 'Index', i);
     points = detectHarrisFeatures(frame1, 'FilterSize', 5, 'MinQuality', .8, 'ROI', [width/horzSections, height/vertSections, (horzSections-2)*width/horzSections, (vertSections-2)*height/vertSections]);
-    strongest = points.selectStrongest(1);
-    cp1 = int16(strongest.Location);
-    if size(cp1,1) ~= 0
-        point_array_x(i) = cp1(1);
-        point_array_y(i) = cp1(2);
-    else
-        point_array_x(i) = width/2;
-        point_array_y(i) = height/2;
+    for j = 1:length(points)
+        pt = points(j).Location;
+        point_array_x(i*j) = pt(1);
+        point_array_y(i*j) = pt(2);
     end;
 end;
 
@@ -42,35 +38,52 @@ for i = 1:horzSections
         end;
     end;
 end;
-most_indexed = zeros(numPoints, 1);
+most_indexed_x = zeros(numPoints, 1);
 for i = 1:numPoints
     for k = 1:horzSections
-        if count_horz(k) >= most_indexed(i)
-            if i > 1 && most_indexed(i-1) ~= k
-                most_indexed(i) = k;
+        if count_horz(k) >= most_indexed_x(i)
+            if i > 1 && most_indexed_x(i-1) ~= k
+                most_indexed_x(i) = k;
             elseif i == 1
-                most_indexed(i) = k;
+                most_indexed_x(i) = k;
             end;
         end;
     end;
 end;
 
-point_array_x = [numFrames,numPoints]; %Find contact angles for horizontal sections with most points
-point_array_y = [numFrames,numPoints];
-contact_angle_array = [numFrames,numPoints];
+count_vert = zeros(vertSections, 1); %Find vertical sections with most points (assumes all points are roughly parallel)
+for i = 1:vertSections
+    lowerVertRange = (i-1) * height/vertSections;
+    upperVertRange = i * height/vertSections;
+    for k = 1 : size(point_array_y,2)
+        if point_array_y(k) <= upperVertRange && point_array_y(k) > lowerVertRange
+            count_vert(i) = count_vert(i) + 1;
+        end;
+    end;
+end;
+most_indexed_y = 0;
+for i = 1:vertSections
+    if count_vert(i) >= most_indexed_y
+        most_indexed_y = i;
+    end;
+end;
+
+point_array_x_2 = []; %Find contact angles for horizontal sections with most points
+point_array_y_2 = [];
+contact_angle_array = [];
 for u = 1:numPoints
-    vertSection = int16(most_indexed/vertSections);
-    horzSection = int16(mod(most_indexed, horzSections));
-    ROI = [((most_indexed(u)-1) * width / horzSections)+1, (height / vertSections)+1, width/horzSections, (vertSections-2) * height/vertSections];
+    vertSection = int16(most_indexed_x/vertSections);
+    horzSection = int16(mod(most_indexed_x, horzSections));
+    ROI = [((most_indexed_x(u)-1) * width / horzSections)+1, ((most_indexed_y-1) * height / vertSections)+1, width/horzSections, height/vertSections];
     for i = 1 : numFrames
         frame_second = imread(filename, 'Index', i);
-        points = detectHarrisFeatures(frame_second, 'ROI', ROI, 'FilterSize', 5, 'MinQuality', .95);
-        strongest = points.selectStrongest(1);
-        cp2 = int16(strongest.Location);
-        if size(cp2,1) ~= 0
-            point_array_x(i,u) = cp2(1);
-            point_array_y(i,u) = cp2(2);
-            D = frame_second(cp2(2)-50:cp2(2)+50,cp2(1)-80:cp2(1)+80);
+        points_2 = detectHarrisFeatures(frame_second, 'ROI', ROI, 'FilterSize', 5, 'MinQuality', .999);
+        strongest = points_2.selectStrongest(1);
+        pt = int16(strongest.Location);
+        if size(pt,1) ~= 0
+            point_array_x_2(i,u) = pt(1);
+            point_array_y_2(i,u) = pt(2);
+            D = frame_second(pt(2)-50:pt(2)+50,pt(1)-80:pt(1)+80);
             D = double(imbinarize(D));
             
             Mask=zeros(2*mask_size+1,2*mask_size+1); % initilize the mask
@@ -96,8 +109,8 @@ for u = 1:numPoints
             contact_angle_array(i,u) = contact_angle;
         else
             contact_angle_array(i,u) = 0;
-            point_array_x(i,u) = height/2;
-            point_array_y(i,u) = width/2;
+            point_array_x_2(i,u) = 200;
+            point_array_y_2(i,u) = 200;
         end;
     end;
 end;
@@ -106,7 +119,7 @@ imshow(frame_second); %Plot results
 hold on;
 colors = ['r', 'b', 'm', 'y'];
 for i = 1:numPoints
-    plot(point_array_x(:,i), point_array_y(:,i), strcat(colors(i), '*'));
+    plot(point_array_x_2(:,i), point_array_y_2(:,i), strcat(colors(i), '*'));
 end;
 hold off;
 figure;
