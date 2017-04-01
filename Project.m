@@ -11,20 +11,22 @@ width = InfoImage(1).Width;
 height = InfoImage(2).Height;
 
 vertSections = 6; %Tweakable Variables
-horzSections = 4;
-vidSections = 4;
-numPoints = 2;
+horzSections = 8;
+vidSections = 3;
+numPoints = 4;
 mask_size = 20;
 
 point_array_x = []; %Find strongest points in every frame
 point_array_y = [];
-for i = 1 : numFrames
+
+for h = 1:vidSections
+for i = 1 : h*numFrames/vidSections
     frame1 = imread(filename, 'Index', i);
     points = detectHarrisFeatures(frame1, 'FilterSize', 5, 'MinQuality', .8, 'ROI', [width/horzSections, height/vertSections, (horzSections-2)*width/horzSections, (vertSections-2)*height/vertSections]);
     for j = 1:length(points)
         pt = points(j).Location;
-        point_array_x(i*j) = pt(1);
-        point_array_y(i*j) = pt(2);
+        point_array_x(i*j,h) = pt(1);
+        point_array_y(i*j,h) = pt(2);
     end;
 end;
 
@@ -38,18 +40,7 @@ for i = 1:horzSections
         end;
     end;
 end;
-most_indexed_x = zeros(numPoints, 1);
-for i = 1:numPoints
-    for k = 1:horzSections
-        if count_horz(k) >= most_indexed_x(i)
-            if i > 1 && most_indexed_x(i-1) ~= k
-                most_indexed_x(i) = k;
-            elseif i == 1
-                most_indexed_x(i) = k;
-            end;
-        end;
-    end;
-end;
+[count_horz_sorted, most_indexed_x] = sort(count_horz, 'descend');
 
 count_vert = zeros(vertSections, 1); %Find vertical sections with most points (assumes all points are roughly parallel)
 for i = 1:vertSections
@@ -61,12 +52,8 @@ for i = 1:vertSections
         end;
     end;
 end;
-most_indexed_y = 0;
-for i = 1:vertSections
-    if count_vert(i) >= most_indexed_y
-        most_indexed_y = i;
-    end;
-end;
+[count_vert_sorted, most_indexed_y] = sort(count_vert, 'descend');
+most_indexed_y = most_indexed_y(1);
 
 point_array_x_2 = []; %Find contact angles for horizontal sections with most points
 point_array_y_2 = [];
@@ -76,14 +63,14 @@ for u = 1:numPoints
     horzSection = int16(mod(most_indexed_x, horzSections));
     ROI = [((most_indexed_x(u)-1) * width / horzSections)+1, ((most_indexed_y-1) * height / vertSections)+1, width/horzSections, height/vertSections];
     for i = 1 : numFrames
-        frame_second = imread(filename, 'Index', i);
-        points_2 = detectHarrisFeatures(frame_second, 'ROI', ROI, 'FilterSize', 5, 'MinQuality', .999);
+        frame2 = imread(filename, 'Index', i);
+        points_2 = detectHarrisFeatures(frame2, 'ROI', ROI, 'FilterSize', 5, 'MinQuality', .9);
         strongest = points_2.selectStrongest(1);
         pt = int16(strongest.Location);
         if size(pt,1) ~= 0
             point_array_x_2(i,u) = pt(1);
             point_array_y_2(i,u) = pt(2);
-            D = frame_second(pt(2)-50:pt(2)+50,pt(1)-80:pt(1)+80);
+            D = frame2(pt(2)-(height/(vertSections*4)):pt(2)+(height/(vertSections*4)),pt(1)-(width/(horzSections*4)):pt(1)+(width/(horzSections*4)));
             D = double(imbinarize(D));
             
             Mask=zeros(2*mask_size+1,2*mask_size+1); % initilize the mask
@@ -95,12 +82,12 @@ for u = 1:numPoints
             conv=conv2(D,Mask,'same'); % Doing 2-D convolution operation
             convf=conv2(flipud(D),Mask,'same');
             R_square=(mask_size+1)^2; % value of R^2
-            A=conv(51,81); % shaded area
+            A=conv(round((height/(vertSections*4)+1)),round((width/(horzSections*4))+1)); % shaded area
             lambda=sign(0.5*R_square-A); % sign function
             alpha=pi/2*(1-lambda)+atan(lambda*(R_square*(1-lambda)-2*A)/(2*A-R_square)); % using pre-defined equation
             theta_h=(180/pi)*alpha; % converting to degree
             
-            A=convf(51,81);
+            A=conv(round((height/(vertSections*4)+1)),round((width/(horzSections*4))+1));
             lambda=sign(0.5*R_square-A); % sign function
             alpha=pi/2*(1-lambda)+atan(lambda*(R_square*(1-lambda)-2*A)/(2*A-R_square)); % using pre-defined equation
             theta_t=(180/pi)*alpha;
@@ -109,15 +96,15 @@ for u = 1:numPoints
             contact_angle_array(i,u) = contact_angle;
         else
             contact_angle_array(i,u) = 0;
-            point_array_x_2(i,u) = 200;
-            point_array_y_2(i,u) = 200;
+            point_array_x_2(i,u) = 1;
+            point_array_y_2(i,u) = 1;
         end;
     end;
 end;
 
-imshow(frame_second); %Plot results
+imshow(frame2); %Plot results
 hold on;
-colors = ['r', 'b', 'm', 'y'];
+ colors = ['r', 'b', 'm', 'y'];
 for i = 1:numPoints
     plot(point_array_x_2(:,i), point_array_y_2(:,i), strcat(colors(i), '*'));
 end;
