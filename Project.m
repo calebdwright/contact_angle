@@ -10,11 +10,11 @@ width = InfoImage(1).Width;
 height = InfoImage(2).Height;
 
 vertSections = 8; %Tweakable Variables
-horzSections = 6;
-vidSections = 2;
+horzSections = 8;
+vidSections = 4;
 numPoints = 4;
 mask_size = 20;
-sensitivity = .9;
+sensitivity = .99;
 
 tweakable_vars = strcat('_vert', num2str(vertSections), '_horz', num2str(horzSections), '_vid', num2str(vidSections), '_pts', num2str(numPoints), '_mask', num2str(mask_size), '_sens', num2str(sensitivity));
 v = VideoWriter(strcat('Tracked_Videos/', InputVideo, '_tracked', tweakable_vars, '.avi'));
@@ -24,6 +24,7 @@ point_array_x = []; %Find strongest points in every frame
 point_array_y = [];
 
 for h = 1:vidSections
+    disp(h);
     for i = (round((h-1)*numFrames/vidSections +1)) : h*numFrames/vidSections
         frame1 = imread(filename, 'Index', i);
         points = detectHarrisFeatures(frame1, 'FilterSize', 5, 'MinQuality', sensitivity, 'ROI', [width/horzSections, height/vertSections, (horzSections-2)*width/horzSections, (vertSections-2)*height/vertSections]);
@@ -66,6 +67,7 @@ point_array_y_2 = [];
 contact_angle_array = [];
 for h = 1:vidSections
     for u = 1:numPoints
+        disp(h);
         ROI = [((most_indexed_x(u,h)-1) * width / horzSections)+1, ((most_indexed_y(h)-1) * height / vertSections)+1, width/horzSections, height/vertSections];
         for i = (round((h-1)*numFrames/vidSections +1)) : h*numFrames/vidSections
             frame2 = imread(filename, 'Index', i);
@@ -103,6 +105,10 @@ for h = 1:vidSections
                 contact_angle_array(i,u) = 0;
                 point_array_x_2(i,u) = 1;
                 point_array_y_2(i,u) = 1;
+            end;
+            if contact_angle_array(i,u) < 0
+                point_array_x_2(i,u) = 1;
+                point_array_x_2(i,u) = 1;
             end;
             frame2 = insertMarker(frame2, [point_array_x_2(i,u), point_array_y_2(i,u)]);
             writeVideo(v, frame2);
